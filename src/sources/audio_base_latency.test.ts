@@ -30,6 +30,33 @@ describe('Sources', () => {
       expect(second).toBe(first)
     })
 
+    it('closes the audio context after reading the latency', () => {
+      const isAllowedPlatform = isAndroid() || isWebKit()
+      if (!isAllowedPlatform || !hasBaseLatencySupport()) {
+        return
+      }
+
+      const OriginalAudioContext = window.AudioContext
+      const closeSpy = jasmine.createSpy('close').and.returnValue(Promise.resolve())
+
+      class MockAudioContext {
+        get baseLatency() {
+          return 0.01
+        }
+
+        close = closeSpy
+      }
+
+      window.AudioContext = MockAudioContext as unknown as typeof window.AudioContext
+
+      try {
+        expect(getAudioBaseLatency()).toBe(0.01)
+        expect(closeSpy).toHaveBeenCalledTimes(1)
+      } finally {
+        window.AudioContext = OriginalAudioContext
+      }
+    })
+
     it('handles Infinity case correctly', () => {
       const isAllowedPlatform = isAndroid() || isWebKit()
       if (!isAllowedPlatform || !hasBaseLatencySupport()) {
@@ -41,6 +68,10 @@ describe('Sources', () => {
       class MockAudioContext {
         get baseLatency() {
           return Infinity
+        }
+
+        close() {
+          return Promise.resolve()
         }
       }
 
